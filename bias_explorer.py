@@ -5,11 +5,10 @@ bias_explorer — draw the Chebyshev-bias graph from just an LMFDB label.
 
 Elliptic curve E/Q:  S(x) = sum_{p<=x} a_p/p  ~  (1/2 - rank)*loglog x + c
                      (Aoki-Koyama bias; motivic weight 1).
-Dependencies are pip-only (cypari2 = PARI, matplotlib, numpy) so it runs on
-mybinder.org / NII Jupyter with no system PARI/sage needed.
 
 Usage:  python bias_explorer.py 11.a1
-        notebook:  plot_bias("389.a1")
+        notebook:  plot_bias("389.a1")              # default x <= 1e6
+                   plot_bias("389.a1", xmax=10**8)  # larger x (slower; up to ~1e8)
 """
 import sys, json, urllib.request
 import numpy as np
@@ -30,17 +29,31 @@ def fetch_ec(label):
     return list(rec["ainvs"]), int(rec["rank"]), rec["lmfdb_label"]
 
 
+def _sieve(n):
+    """Primes up to n via a simple numpy sieve (memory ~ n bytes; fine up to ~1e8)."""
+    s = np.ones(n + 1, dtype=bool); s[:2] = False
+    for i in range(2, int(n**0.5) + 1):
+        if s[i]:
+            s[i*i::i] = False
+    return np.nonzero(s)[0]
+
+
 def bias_trajectory(ainvs, xmax=10**6, npts=600):
     """S(x) = sum_{p<=x, p good} a_p/p, sampled at npts log-spaced checkpoints."""
+    xmax = int(xmax)
+    if xmax > 2 * 10**8:
+        raise ValueError("xmax too large for this in-browser demo (use <= 2e8). "
+                         "Large-x runs are done on the compute nodes.")
     E = PARI.ellinit(ainvs)
     N = int(PARI.ellglobalred(E)[0])
-    primes = [int(p) for p in PARI.primes(int(PARI.primepi(xmax)))]
-    checkpoints = set(np.unique(np.geomspace(30, xmax, npts).astype(np.int64)).tolist())
+    primes = _sieve(xmax)
+    cps = set(np.unique(np.geomspace(30, xmax, npts).astype(np.int64)).tolist())
     xs, Ss, S = [], [], 0.0
     for p in primes:
+        p = int(p)
         if N % p:
             S += int(PARI.ellap(E, p)) / p
-        if p in checkpoints:
+        if p in cps:
             xs.append(p); Ss.append(S)
     return np.array(xs), np.array(Ss)
 
@@ -58,14 +71,15 @@ def plot_bias(label, xmax=10**6, ax=None):
     ax.plot(xg, (0.5 - rank) * np.log(np.log(xg)) + c, "r--", lw=1.2,
             label=f"theory $(1/2-\\mathrm{{rank}})\\,\\log\\log x$, rank={rank}")
     ax.set_xscale("log"); ax.set_xlabel("x"); ax.set_ylabel("S(x)")
-    ax.set_title(f"Chebyshev bias of {lab}  (analytic rank {rank})")
+    ax.set_title(f"Chebyshev bias of {lab}  (analytic rank {rank}),  x ≤ {xmax:g}")
     ax.grid(alpha=0.3); ax.legend()
     return ax, rank
 
 
 if __name__ == "__main__":
     label = sys.argv[1] if len(sys.argv) > 1 else "11.a1"
-    ax, rank = plot_bias(label)
+    xmax = int(float(sys.argv[2])) if len(sys.argv) > 2 else 10**6
+    ax, rank = plot_bias(label, xmax=xmax)
     out = f"/tmp/bias_{label.replace('.', '_')}.png"
     ax.figure.savefig(out, dpi=130, bbox_inches="tight")
-    print(f"OK label={label} rank={rank} -> {out}")
+    print(f"OK label={label} xmax={xmax} rank={rank} -> {out}")
