@@ -38,8 +38,9 @@ def _sieve(n):
     return np.nonzero(s)[0]
 
 
-def bias_trajectory(ainvs, xmax=10**6, npts=600):
-    """S(x) = sum_{p<=x, p good} a_p/p, sampled at npts log-spaced checkpoints."""
+def bias_trajectory(ainvs, xmax=10**6, npts=1500):
+    """S(x) = sum_{p<=x, p good} a_p/p, recorded at npts log-spaced x-thresholds
+    (value at the first prime that reaches each threshold)."""
     xmax = int(xmax)
     if xmax > 2 * 10**8:
         raise ValueError("xmax too large for this in-browser demo (use <= 2e8). "
@@ -47,21 +48,21 @@ def bias_trajectory(ainvs, xmax=10**6, npts=600):
     E = PARI.ellinit(ainvs)
     N = int(PARI.ellglobalred(E)[0])
     primes = _sieve(xmax)
-    cps = set(np.unique(np.geomspace(30, xmax, npts).astype(np.int64)).tolist())
-    xs, Ss, S = [], [], 0.0
+    cps = np.unique(np.geomspace(20, xmax, npts).astype(np.int64))
+    xs, Ss, S, ci = [], [], 0.0, 0
     for p in primes:
         p = int(p)
         if N % p:
             S += int(PARI.ellap(E, p)) / p
-        if p in cps:
-            xs.append(p); Ss.append(S)
+        while ci < len(cps) and p >= cps[ci]:
+            xs.append(p); Ss.append(S); ci += 1
     return np.array(xs), np.array(Ss)
 
 
-def plot_bias(label, xmax=10**6, ax=None):
+def plot_bias(label, xmax=10**6, ax=None, npts=1500):
     """LMFDB label -> Chebyshev-bias plot with the Aoki-Koyama theory line."""
     ainvs, rank, lab = fetch_ec(label)
-    xs, Ss = bias_trajectory(ainvs, xmax)
+    xs, Ss = bias_trajectory(ainvs, xmax, npts)
     if ax is None:
         _, ax = plt.subplots(figsize=(9, 5.5))
     ax.plot(xs, Ss, lw=0.6, color="C0", label=f"S(x)=$\\Sigma\\,a_p/p$  (EC {lab})")
