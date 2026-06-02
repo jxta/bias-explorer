@@ -1,2 +1,0 @@
-pari-gp
-libpari-dev

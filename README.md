@@ -12,12 +12,12 @@ and get its Chebyshev-bias plot
 The red dashed line is the Aoki–Koyama theory slope `1/2 − (analytic rank)`.
 
 ## Run
-- **On Binder / NII Jupyter:** click the badge above (or open `bias_explorer.ipynb`),
-  edit the label, run. Dependencies are pip-only via `requirements.txt` + `apt.txt`.
-- **Locally:** `pip install -r requirements.txt` (needs PARI: `apt install pari-gp libpari-dev`),
+- **On Binder / NII Jupyter:** click the badge above. After the (one-time) build,
+  open `bias_explorer.ipynb`, edit the label, run.
+- **Locally:** `conda env create -f environment.yml && conda activate bias-explorer`,
   then `python bias_explorer.py 389.a1` or open `bias_explorer.ipynb`.
 
 ## Notes
-- a_p computed with PARI (`ellap`); curve data fetched from the LMFDB API by label.
-- Default x ≤ 10⁶. Increase `xmax` for sharper convergence.
+- a_p computed with PARI via cypari2 (conda-forge, PARI bundled — no system install).
+- Curve data fetched from the LMFDB API by label. Default x ≤ 10⁶.
 - EC over Q for now; number-field / Artin versions to follow.
